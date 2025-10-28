@@ -1,0 +1,95 @@
+// Prisma Schema for Conversation History App
+// ローカル開発はsqlite、本番はPostgreSQL想定
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite" // 本番では "postgresql" に変更
+  url      = env("DATABASE_URL")
+}
+
+// ユーザーモデル
+model User {
+  id           String         @id @default(cuid())
+  email        String         @unique
+  passwordHash String         // Argon2でハッシュ化
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+
+  // リレーション
+  sessions      Session[]
+  conversations Conversation[]
+
+  @@map("users")
+}
+
+// セッション管理（JWT永続化用）
+model Session {
+  id        String   @id @default(cuid())
+  userId    String
+  token     String   @unique // JWT文字列
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  // リレーション
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+  @@map("sessions")
+}
+
+// 会話（Conversation）
+model Conversation {
+  id           String    @id @default(cuid())
+  userId       String
+  title        String    @default("新しい会話")
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  messageCount Int       @default(0)  // メッセージ総数（パフォーマンス用）
+  archived     Boolean   @default(false) // アーカイブ済みフラグ
+
+  // リレーション
+  user             User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  messages         Message[]
+  conversationBlob ConversationBlob?
+
+  @@index([userId, updatedAt])
+  @@index([userId, archived])
+  @@map("conversations")
+}
+
+// メッセージ
+model Message {
+  id             String   @id @default(cuid())
+  conversationId String
+  role           String   // 'user' | 'assistant' | 'system'
+  content        String   // テキストまたはJSON（PostgreSQLではjsonb型に変更可能）
+  createdAt      DateTime @default(now())
+  tokenIn        Int      @default(0) // 入力トークン数
+  tokenOut       Int      @default(0) // 出力トークン数
+  index          Int      // 会話内の順序（0始まり）
+
+  // リレーション
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@unique([conversationId, index])
+  @@index([conversationId, createdAt])
+  @@map("messages")
+}
+
+// 会話のアーカイブ情報（S3/ローカルストレージへのポインタ）
+model ConversationBlob {
+  conversationId String   @id
+  storageKey     String   // 例: "s3://bucket/user123/conv456.jsonl" or "file://data/conv456.jsonl"
+  bytes          Int      @default(0)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  // リレーション
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@map("conversation_blobs")
+}
