@@ -93,3 +93,4 @@ model ConversationBlob {
 
   @@map("conversation_blobs")
 }
+

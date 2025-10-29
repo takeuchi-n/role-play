@@ -2,14 +2,17 @@ interface DemoMessageProps {
   role: 'salesman' | 'prospect';
   content: string;
   timestamp: number;
+  prospectName?: string;
 }
 
-export default function DemoMessage({ role, content, timestamp }: DemoMessageProps) {
+export default function DemoMessage({ role, content, timestamp, prospectName }: DemoMessageProps) {
   const isSalesman = role === 'salesman';
   const time = new Date(timestamp).toLocaleTimeString('ja-JP', {
     hour: '2-digit',
     minute: '2-digit',
   });
+
+  const displayName = isSalesman ? 'AI営業マン' : (prospectName || '見込み客');
 
   return (
     <div className={`flex ${isSalesman ? 'justify-end' : 'justify-start'}`}>
@@ -28,7 +31,7 @@ export default function DemoMessage({ role, content, timestamp }: DemoMessagePro
             isSalesman ? 'text-right' : 'text-left'
           }`}
         >
-          {isSalesman ? '営業担当' : '見込み客'} • {time}
+          {displayName} • {time}
         </div>
       </div>
     </div>

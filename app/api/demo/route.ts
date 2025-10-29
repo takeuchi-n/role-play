@@ -7,7 +7,7 @@ import type { DemoSettings } from '@/lib/types';
 
 interface DemoRequest {
   settings: DemoSettings;
-  turns?: number; // 会話のターン数（1ターン = 営業→見込み客）
+  role: 'salesman' | 'prospect'; // 生成する役割
   salesmanHistory?: ConverseMessage[]; // 営業マンの会話履歴
   prospectHistory?: ConverseMessage[]; // 見込み客の会話履歴
 }
@@ -59,91 +59,100 @@ async function callBedrock(
 export async function POST(request: NextRequest) {
   try {
     const body: DemoRequest = await request.json();
-    const { settings, salesmanHistory, prospectHistory } = body;
+    const { settings, role, salesmanHistory, prospectHistory } = body;
 
-    if (!settings) {
+    if (!settings || !role) {
       return NextResponse.json(
         { success: false, error: '無効なリクエストです' },
         { status: 400 }
       );
     }
 
-    console.log('\n========== デモ会話生成（1ターン） ==========');
+    console.log(`\n========== デモ会話生成（${role === 'salesman' ? '営業' : '見込み客'}） ==========`);
     console.log(`設定: ${settings.age}歳 ${settings.gender === 'male' ? '男性' : '女性'} ${settings.maritalStatus}`);
-
-    const salesmanPrompt = buildProSalesmanPrompt(settings);
-    const prospectPrompt = buildSystemPrompt(settings);
 
     let salesmanMessages: ConverseMessage[] = salesmanHistory || [];
     let prospectMessages: ConverseMessage[] = prospectHistory || [];
 
-    // 初回の場合、営業マンに開始プロンプトを追加
-    if (salesmanMessages.length === 0) {
+    if (role === 'salesman') {
+      // 営業マンの発言を生成
+      const salesmanPrompt = buildProSalesmanPrompt(settings);
+
+      // 初回の場合、営業マンに開始プロンプトを追加（挨拶を含む）
+      if (salesmanMessages.length === 0) {
+        salesmanMessages.push({
+          role: 'user',
+          content: [{ text: '保険の営業を開始します。まずは自然な挨拶から始めて、この見込み客の状況を踏まえた適切な提案を行ってください。' }],
+        });
+      } else {
+        // 2回目以降は挨拶なしで会話を続ける
+        salesmanMessages.push({
+          role: 'user',
+          content: [{ text: '会話を続けてください。挨拶は不要です。' }],
+        });
+      }
+
+      const salesmanResult = await callBedrock(salesmanMessages, salesmanPrompt);
+
+      if (!salesmanResult.success) {
+        return NextResponse.json(
+          { success: false, error: salesmanResult.error },
+          { status: 500 }
+        );
+      }
+
+      console.log(`営業: ${salesmanResult.text}`);
+
+      // 営業マンの発言を履歴に追加
+      salesmanMessages.push({
+        role: 'assistant',
+        content: [{ text: salesmanResult.text }],
+      });
+
+      console.log('\n==============================\n');
+
+      return NextResponse.json({
+        success: true,
+        message: salesmanResult.text,
+        salesmanHistory: salesmanMessages,
+        prospectHistory: prospectMessages,
+      });
+    } else {
+      // 見込み客の発言を生成
+      const prospectPrompt = buildSystemPrompt(settings);
+
+      const prospectResult = await callBedrock(prospectMessages, prospectPrompt);
+
+      if (!prospectResult.success) {
+        return NextResponse.json(
+          { success: false, error: prospectResult.error },
+          { status: 500 }
+        );
+      }
+
+      console.log(`見込み客: ${prospectResult.text}`);
+
+      // 見込み客の発言を履歴に追加
+      prospectMessages.push({
+        role: 'assistant',
+        content: [{ text: prospectResult.text }],
+      });
+
+      // 営業マンの履歴に見込み客の発言を追加（userとして）
       salesmanMessages.push({
         role: 'user',
-        content: [{ text: '保険の営業を開始してください。自然な挨拶から始めて、相手のニーズを引き出してください。' }],
+        content: [{ text: prospectResult.text }],
+      });
+
+      console.log('\n==============================\n');
+
+      return NextResponse.json({
+        success: true,
+        message: prospectResult.text,
+        salesmanHistory: salesmanMessages,
+        prospectHistory: prospectMessages,
       });
     }
-
-    // 営業マンの発言を生成
-    const salesmanResult = await callBedrock(salesmanMessages, salesmanPrompt);
-
-    if (!salesmanResult.success) {
-      return NextResponse.json(
-        { success: false, error: salesmanResult.error },
-        { status: 500 }
-      );
-    }
-
-    console.log(`営業: ${salesmanResult.text}`);
-
-    // 営業マンの発言を履歴に追加
-    salesmanMessages.push({
-      role: 'assistant',
-      content: [{ text: salesmanResult.text }],
-    });
-
-    // 見込み客の履歴に営業マンの発言を追加（userとして）
-    prospectMessages.push({
-      role: 'user',
-      content: [{ text: salesmanResult.text }],
-    });
-
-    // 見込み客の発言を生成
-    const prospectResult = await callBedrock(prospectMessages, prospectPrompt);
-
-    if (!prospectResult.success) {
-      return NextResponse.json(
-        { success: false, error: prospectResult.error },
-        { status: 500 }
-      );
-    }
-
-    console.log(`見込み客: ${prospectResult.text}`);
-
-    // 見込み客の発言を履歴に追加
-    prospectMessages.push({
-      role: 'assistant',
-      content: [{ text: prospectResult.text }],
-    });
-
-    // 営業マンの履歴に見込み客の発言を追加（userとして）
-    salesmanMessages.push({
-      role: 'user',
-      content: [{ text: prospectResult.text }],
-    });
-
-    console.log('\n==============================\n');
-
-    return NextResponse.json({
-      success: true,
-      turn: {
-        salesman: salesmanResult.text,
-        prospect: prospectResult.text,
-      },
-      salesmanHistory: salesmanMessages,
-      prospectHistory: prospectMessages,
-    });
   } catch (error) {
     console.error('API Error:', error);
     return NextResponse.json(

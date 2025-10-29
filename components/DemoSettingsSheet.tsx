@@ -8,13 +8,14 @@ interface DemoSettingsSheetProps {
 }
 
 export default function DemoSettingsSheet({ settings, onSave, onClose }: DemoSettingsSheetProps) {
+  const [prospectName, setProspectName] = useState(settings.prospectName);
   const [age, setAge] = useState(settings.age);
   const [gender, setGender] = useState(settings.gender);
   const [maritalStatus, setMaritalStatus] = useState(settings.maritalStatus);
   const [insuranceProduct, setInsuranceProduct] = useState(settings.insuranceProduct);
 
   const handleSave = () => {
-    onSave({ age, gender, maritalStatus, insuranceProduct });
+    onSave({ prospectName, age, gender, maritalStatus, insuranceProduct });
   };
 
   const ageOptions = Array.from({ length: 53 }, (_, i) => i + 18); // 18-70歳
@@ -27,6 +28,18 @@ export default function DemoSettingsSheet({ settings, onSave, onClose }: DemoSet
         </div>
 
         <div className="px-6 py-4 space-y-4">
+          {/* Prospect Name */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">見込み客の名前</label>
+            <input
+              type="text"
+              value={prospectName}
+              onChange={(e) => setProspectName(e.target.value)}
+              placeholder="例: 田中太郎"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+
           {/* Age */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">年齢</label>
@@ -107,8 +120,8 @@ export default function DemoSettingsSheet({ settings, onSave, onClose }: DemoSet
               <strong>設定プレビュー:</strong>
             </p>
             <p className="text-sm text-gray-800 mt-1">
-              {age}歳・{gender === 'male' ? '男性' : '女性'}・
-              {maritalStatus === 'single' ? '独身' : maritalStatus === 'married' ? '既婚' : '離婚'}の見込み客に対して、
+              {prospectName}さん（{age}歳・{gender === 'male' ? '男性' : '女性'}・
+              {maritalStatus === 'single' ? '独身' : maritalStatus === 'married' ? '既婚' : '離婚'}）に対して、
               <strong>
                 {insuranceProduct === 'cancer'
                   ? 'がん保険'

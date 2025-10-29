@@ -30,6 +30,7 @@ export default function DemoPage() {
   const [salesmanHistory, setSalesmanHistory] = useState<any[]>([]);
   const [prospectHistory, setProspectHistory] = useState<any[]>([]);
   const [settings, setSettings] = useState<DemoSettings>({
+    prospectName: '田中様',
     age: 38,
     gender: 'female',
     maritalStatus: 'married',
@@ -58,43 +59,74 @@ export default function DemoPage() {
       for (let i = 0; i < turns; i++) {
         setCurrentTurn(i + 1);
 
-        const response = await fetch('/api/demo', {
+        // 営業マンの発言を生成
+        const salesmanResponse = await fetch('/api/demo', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             settings,
+            role: 'salesman',
             salesmanHistory: localSalesmanHistory,
             prospectHistory: localProspectHistory,
           }),
         });
 
-        const data = await response.json();
+        const salesmanData = await salesmanResponse.json();
 
-        if (!response.ok) {
-          throw new Error(data.error || '会話の生成に失敗しました');
+        if (!salesmanResponse.ok) {
+          throw new Error(salesmanData.error || '営業マンの発言生成に失敗しました');
         }
 
-        // 営業マンのメッセージを追加
+        // 営業マンのメッセージを表示
         const salesmanMessage: Message = {
           role: 'salesman',
-          content: data.turn.salesman,
+          content: salesmanData.message,
           timestamp: Date.now(),
         };
         setMessages((prev) => [...prev, salesmanMessage]);
 
-        // 少し待ってから見込み客のメッセージを追加
-        await new Promise((resolve) => setTimeout(resolve, 500));
+        // 履歴を更新
+        localSalesmanHistory = salesmanData.salesmanHistory;
+        localProspectHistory = salesmanData.prospectHistory;
 
+        // 見込み客の履歴に営業マンの発言を追加
+        localProspectHistory.push({
+          role: 'user',
+          content: [{ text: salesmanData.message }],
+        });
+
+        setSalesmanHistory(localSalesmanHistory);
+        setProspectHistory(localProspectHistory);
+
+        // 見込み客の発言を生成
+        const prospectResponse = await fetch('/api/demo', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            settings,
+            role: 'prospect',
+            salesmanHistory: localSalesmanHistory,
+            prospectHistory: localProspectHistory,
+          }),
+        });
+
+        const prospectData = await prospectResponse.json();
+
+        if (!prospectResponse.ok) {
+          throw new Error(prospectData.error || '見込み客の発言生成に失敗しました');
+        }
+
+        // 見込み客のメッセージを表示
         const prospectMessage: Message = {
           role: 'prospect',
-          content: data.turn.prospect,
+          content: prospectData.message,
           timestamp: Date.now(),
         };
         setMessages((prev) => [...prev, prospectMessage]);
 
         // 履歴を更新
-        localSalesmanHistory = data.salesmanHistory;
-        localProspectHistory = data.prospectHistory;
+        localSalesmanHistory = prospectData.salesmanHistory;
+        localProspectHistory = prospectData.prospectHistory;
         setSalesmanHistory(localSalesmanHistory);
         setProspectHistory(localProspectHistory);
       }
@@ -113,43 +145,79 @@ export default function DemoPage() {
     setError(null);
 
     try {
-      const response = await fetch('/api/demo', {
+      let localSalesmanHistory = salesmanHistory;
+      let localProspectHistory = prospectHistory;
+
+      // 営業マンの発言を生成
+      const salesmanResponse = await fetch('/api/demo', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           settings,
-          salesmanHistory,
-          prospectHistory,
+          role: 'salesman',
+          salesmanHistory: localSalesmanHistory,
+          prospectHistory: localProspectHistory,
         }),
       });
 
-      const data = await response.json();
+      const salesmanData = await salesmanResponse.json();
 
-      if (!response.ok) {
-        throw new Error(data.error || '会話の生成に失敗しました');
+      if (!salesmanResponse.ok) {
+        throw new Error(salesmanData.error || '営業マンの発言生成に失敗しました');
       }
 
-      // 営業マンのメッセージを追加
+      // 営業マンのメッセージを表示
       const salesmanMessage: Message = {
         role: 'salesman',
-        content: data.turn.salesman,
+        content: salesmanData.message,
         timestamp: Date.now(),
       };
       setMessages((prev) => [...prev, salesmanMessage]);
 
-      // 少し待ってから見込み客のメッセージを追加
-      await new Promise((resolve) => setTimeout(resolve, 500));
+      // 履歴を更新
+      localSalesmanHistory = salesmanData.salesmanHistory;
+      localProspectHistory = salesmanData.prospectHistory;
 
+      // 見込み客の履歴に営業マンの発言を追加
+      localProspectHistory.push({
+        role: 'user',
+        content: [{ text: salesmanData.message }],
+      });
+
+      setSalesmanHistory(localSalesmanHistory);
+      setProspectHistory(localProspectHistory);
+
+      // 見込み客の発言を生成
+      const prospectResponse = await fetch('/api/demo', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          settings,
+          role: 'prospect',
+          salesmanHistory: localSalesmanHistory,
+          prospectHistory: localProspectHistory,
+        }),
+      });
+
+      const prospectData = await prospectResponse.json();
+
+      if (!prospectResponse.ok) {
+        throw new Error(prospectData.error || '見込み客の発言生成に失敗しました');
+      }
+
+      // 見込み客のメッセージを表示
       const prospectMessage: Message = {
         role: 'prospect',
-        content: data.turn.prospect,
+        content: prospectData.message,
         timestamp: Date.now(),
       };
       setMessages((prev) => [...prev, prospectMessage]);
 
       // 履歴を更新
-      setSalesmanHistory(data.salesmanHistory);
-      setProspectHistory(data.prospectHistory);
+      localSalesmanHistory = prospectData.salesmanHistory;
+      localProspectHistory = prospectData.prospectHistory;
+      setSalesmanHistory(localSalesmanHistory);
+      setProspectHistory(localProspectHistory);
     } catch (err) {
       setError(err instanceof Error ? err.message : '通信エラーが発生しました');
     } finally {
@@ -227,12 +295,12 @@ export default function DemoPage() {
                 <div>
                   <span className="font-medium text-gray-700">見込み客:</span>
                   <span className="ml-2 text-gray-600">
-                    {settings.age}歳・{settings.gender === 'male' ? '男性' : '女性'}・
+                    {settings.prospectName}（{settings.age}歳・{settings.gender === 'male' ? '男性' : '女性'}・
                     {settings.maritalStatus === 'single'
                       ? '独身'
                       : settings.maritalStatus === 'married'
                       ? '既婚'
-                      : '離婚'}
+                      : '離婚'}）
                   </span>
                 </div>
                 <div>
@@ -306,6 +374,7 @@ export default function DemoPage() {
                   role={msg.role}
                   content={msg.content}
                   timestamp={msg.timestamp}
+                  prospectName={settings.prospectName}
                 />
               ))}
 

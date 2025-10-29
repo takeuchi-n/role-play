@@ -106,6 +106,7 @@ export async function POST(request: NextRequest) {
     console.log('==============================\n');
 
     const systemPrompt = buildSystemPrompt({
+      prospectName: undefined, // チャットページでは名前指定なし（自動生成される）
       age: settings.age,
       gender: settings.gender,
       maritalStatus: settings.maritalStatus,

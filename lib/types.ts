@@ -15,6 +15,7 @@ export interface ChatSettings {
 }
 
 export interface DemoSettings {
+  prospectName: string;
   age: number;
   gender: Gender;
   maritalStatus: MaritalStatus;
