@@ -1,5 +1,6 @@
 export type Gender = 'male' | 'female';
 export type MaritalStatus = 'single' | 'married' | 'divorced';
+export type InsuranceProduct = 'cancer' | 'medical' | 'life' | 'nursing' | 'education' | 'pension';
 
 export interface Message {
   role: 'user' | 'assistant';
@@ -11,6 +12,13 @@ export interface ChatSettings {
   age: number;
   gender: Gender;
   maritalStatus: MaritalStatus;
+}
+
+export interface DemoSettings {
+  age: number;
+  gender: Gender;
+  maritalStatus: MaritalStatus;
+  insuranceProduct: InsuranceProduct;
 }
 
 export interface ChatRequest {

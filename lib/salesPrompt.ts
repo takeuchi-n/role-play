@@ -1,22 +1,34 @@
-import { Gender, MaritalStatus } from './types';
+import { Gender, MaritalStatus, InsuranceProduct } from './types';
 
 interface SalesPromptParams {
   age: number;
   gender: Gender;
   maritalStatus: MaritalStatus;
+  insuranceProduct: InsuranceProduct;
 }
 
-export function buildProSalesmanPrompt({ age, gender, maritalStatus }: SalesPromptParams): string {
+const insuranceProductNames: Record<InsuranceProduct, string> = {
+  cancer: 'がん保険',
+  medical: '医療保険',
+  life: '生命保険（死亡保障）',
+  nursing: '介護保険',
+  education: '学資保険',
+  pension: '個人年金保険',
+};
+
+export function buildProSalesmanPrompt({ age, gender, maritalStatus, insuranceProduct }: SalesPromptParams): string {
   const genderLabel = gender === 'male' ? '男性' : '女性';
   const maritalLabels = {
     single: '独身',
     married: '既婚',
     divorced: '離婚',
   } as const;
+  const productName = insuranceProductNames[insuranceProduct];
 
   return `【役割】
 あなたは**保険営業のプロフェッショナル**です。
 相手は${age}歳・${genderLabel}・${maritalLabels[maritalStatus]}で、金融リテラシーが高く、投資信託やつみたてNISAで資産運用をしている見込み客です。
+今回営業する商品は**${productName}**です。
 
 **重要：営業担当者本人になりきる。推論やメタ説明は出さない。**
 

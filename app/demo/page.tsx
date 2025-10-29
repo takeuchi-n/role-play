@@ -2,8 +2,8 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
-import type { ChatSettings } from '@/lib/types';
-import SettingsSheet from '@/components/SettingsSheet';
+import type { DemoSettings } from '@/lib/types';
+import DemoSettingsSheet from '@/components/DemoSettingsSheet';
 import DemoMessage from '@/components/DemoMessage';
 
 const SETTINGS_KEY = 'insurance-demo-settings';
@@ -29,10 +29,11 @@ export default function DemoPage() {
   const [currentTurn, setCurrentTurn] = useState(0);
   const [salesmanHistory, setSalesmanHistory] = useState<any[]>([]);
   const [prospectHistory, setProspectHistory] = useState<any[]>([]);
-  const [settings, setSettings] = useState<ChatSettings>({
+  const [settings, setSettings] = useState<DemoSettings>({
     age: 38,
     gender: 'female',
     maritalStatus: 'married',
+    insuranceProduct: 'cancer',
   });
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -156,7 +157,7 @@ export default function DemoPage() {
     }
   };
 
-  const handleSettingsChange = (newSettings: ChatSettings) => {
+  const handleSettingsChange = (newSettings: DemoSettings) => {
     setSettings(newSettings);
     setShowSettings(false);
     localStorage.setItem(SETTINGS_KEY, JSON.stringify(newSettings));
@@ -220,23 +221,45 @@ export default function DemoPage() {
           <h3 className="text-md font-semibold text-gray-800 mb-4">会話の設定</h3>
 
           <div className="space-y-4">
-            {/* Persona Display */}
-            <div className="flex items-center gap-3">
-              <label className="text-sm font-medium text-gray-700 min-w-32">見込み客</label>
-              <div className="flex-1 text-sm text-gray-600">
-                {settings.age}歳・{settings.gender === 'male' ? '男性' : '女性'}・
-                {settings.maritalStatus === 'single'
-                  ? '独身'
-                  : settings.maritalStatus === 'married'
-                  ? '既婚'
-                  : '離婚'}
+            {/* Settings Display */}
+            <div className="bg-gray-50 rounded-lg p-4">
+              <div className="grid grid-cols-2 gap-3 text-sm">
+                <div>
+                  <span className="font-medium text-gray-700">見込み客:</span>
+                  <span className="ml-2 text-gray-600">
+                    {settings.age}歳・{settings.gender === 'male' ? '男性' : '女性'}・
+                    {settings.maritalStatus === 'single'
+                      ? '独身'
+                      : settings.maritalStatus === 'married'
+                      ? '既婚'
+                      : '離婚'}
+                  </span>
+                </div>
+                <div>
+                  <span className="font-medium text-gray-700">営業商品:</span>
+                  <span className="ml-2 text-gray-600">
+                    {settings.insuranceProduct === 'cancer'
+                      ? 'がん保険'
+                      : settings.insuranceProduct === 'medical'
+                      ? '医療保険'
+                      : settings.insuranceProduct === 'life'
+                      ? '生命保険'
+                      : settings.insuranceProduct === 'nursing'
+                      ? '介護保険'
+                      : settings.insuranceProduct === 'education'
+                      ? '学資保険'
+                      : '個人年金保険'}
+                  </span>
+                </div>
               </div>
-              <button
-                onClick={() => setShowSettings(true)}
-                className="px-3 py-1 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 text-sm"
-              >
-                変更
-              </button>
+              <div className="mt-3 text-right">
+                <button
+                  onClick={() => setShowSettings(true)}
+                  className="px-4 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium"
+                >
+                  設定を変更
+                </button>
+              </div>
             </div>
 
             {/* Turns Slider */}
@@ -331,7 +354,7 @@ export default function DemoPage() {
 
       {/* Settings Sheet */}
       {showSettings && (
-        <SettingsSheet
+        <DemoSettingsSheet
           settings={settings}
           onSave={handleSettingsChange}
           onClose={() => setShowSettings(false)}

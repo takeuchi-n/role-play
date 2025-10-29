@@ -3,10 +3,10 @@ import { ConverseCommand, type Message as ConverseMessage } from '@aws-sdk/clien
 import { getBedrockClient, getModelConfig } from '@/lib/bedrock';
 import { buildSystemPrompt } from '@/lib/systemPrompt';
 import { buildProSalesmanPrompt } from '@/lib/salesPrompt';
-import type { ChatSettings } from '@/lib/types';
+import type { DemoSettings } from '@/lib/types';
 
 interface DemoRequest {
-  settings: ChatSettings;
+  settings: DemoSettings;
   turns?: number; // 会話のターン数（1ターン = 営業→見込み客）
   salesmanHistory?: ConverseMessage[]; // 営業マンの会話履歴
   prospectHistory?: ConverseMessage[]; // 見込み客の会話履歴
