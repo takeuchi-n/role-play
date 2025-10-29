@@ -77,6 +77,12 @@ export async function POST(request: NextRequest) {
     let salesmanMessages: ConverseMessage[] = [];
     let prospectMessages: ConverseMessage[] = [];
 
+    // 営業マンの初回プロンプト（会話開始のトリガー）
+    salesmanMessages.push({
+      role: 'user',
+      content: [{ text: '保険の営業を開始してください。自然な挨拶から始めて、相手のニーズを引き出してください。' }],
+    });
+
     for (let i = 0; i < turns; i++) {
       console.log(`\n--- ターン ${i + 1} ---`);
 
