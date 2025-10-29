@@ -469,6 +469,14 @@ export default function ChatPage() {
             <h1 className="text-xl font-bold text-gray-800">保険ロープレ（断る人 練習用）</h1>
           </div>
           <div className="flex items-center gap-2">
+            {/* Demo Link */}
+            <a
+              href="/demo"
+              className="px-3 py-1 bg-purple-100 text-purple-700 rounded-lg hover:bg-purple-200 text-sm font-medium"
+              title="営業トーク参考デモ"
+            >
+              📚 営業参考
+            </a>
             {/* Voice Settings Button */}
             <button
               onClick={() => setShowVoiceSettings(!showVoiceSettings)}
