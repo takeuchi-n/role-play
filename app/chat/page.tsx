@@ -332,10 +332,7 @@ export default function ChatPage() {
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      handleSend();
-    }
+    // Enterキーでの送信は無効化（送信ボタンのみで送信）
   };
 
   const handleSettingsChange = (newSettings: ChatSettings) => {
