@@ -1,9 +1,10 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import type { ChatSettings } from '@/lib/types';
 import SettingsSheet from '@/components/SettingsSheet';
+import DemoMessage from '@/components/DemoMessage';
 
 const SETTINGS_KEY = 'insurance-demo-settings';
 
@@ -12,9 +13,15 @@ interface ConversationTurn {
   prospect: string;
 }
 
+interface Message {
+  role: 'salesman' | 'prospect';
+  content: string;
+  timestamp: number;
+}
+
 export default function DemoPage() {
   const { user, loading: authLoading, logout } = useAuth();
-  const [conversation, setConversation] = useState<ConversationTurn[]>([]);
+  const [messages, setMessages] = useState<Message[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showSettings, setShowSettings] = useState(false);
@@ -28,10 +35,17 @@ export default function DemoPage() {
     maritalStatus: 'married',
   });
 
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // Auto-scroll to bottom
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages]);
+
   const handleGenerate = async () => {
     setIsLoading(true);
     setError(null);
-    setConversation([]);
+    setMessages([]);
     setCurrentTurn(0);
     setSalesmanHistory([]);
     setProspectHistory([]);
@@ -59,8 +73,23 @@ export default function DemoPage() {
           throw new Error(data.error || '会話の生成に失敗しました');
         }
 
-        // 会話を追加
-        setConversation((prev) => [...prev, data.turn]);
+        // 営業マンのメッセージを追加
+        const salesmanMessage: Message = {
+          role: 'salesman',
+          content: data.turn.salesman,
+          timestamp: Date.now(),
+        };
+        setMessages((prev) => [...prev, salesmanMessage]);
+
+        // 少し待ってから見込み客のメッセージを追加
+        await new Promise((resolve) => setTimeout(resolve, 500));
+
+        const prospectMessage: Message = {
+          role: 'prospect',
+          content: data.turn.prospect,
+          timestamp: Date.now(),
+        };
+        setMessages((prev) => [...prev, prospectMessage]);
 
         // 履歴を更新
         localSalesmanHistory = data.salesmanHistory;
@@ -99,8 +128,23 @@ export default function DemoPage() {
         throw new Error(data.error || '会話の生成に失敗しました');
       }
 
-      // 会話を追加
-      setConversation((prev) => [...prev, data.turn]);
+      // 営業マンのメッセージを追加
+      const salesmanMessage: Message = {
+        role: 'salesman',
+        content: data.turn.salesman,
+        timestamp: Date.now(),
+      };
+      setMessages((prev) => [...prev, salesmanMessage]);
+
+      // 少し待ってから見込み客のメッセージを追加
+      await new Promise((resolve) => setTimeout(resolve, 500));
+
+      const prospectMessage: Message = {
+        role: 'prospect',
+        content: data.turn.prospect,
+        timestamp: Date.now(),
+      };
+      setMessages((prev) => [...prev, prospectMessage]);
 
       // 履歴を更新
       setSalesmanHistory(data.salesmanHistory);
@@ -127,7 +171,7 @@ export default function DemoPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="flex flex-col h-screen bg-gray-50">
       {/* Header */}
       <header className="bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-between">
         <h1 className="text-xl font-bold text-gray-800">営業トーク参考デモ</h1>
@@ -161,9 +205,9 @@ export default function DemoPage() {
       </header>
 
       {/* Main Content */}
-      <main className="max-w-4xl mx-auto px-4 py-8">
+      <main className="flex-1 overflow-hidden flex flex-col max-w-6xl mx-auto w-full px-4 py-6 gap-4">
         {/* Description */}
-        <div className="bg-blue-50 border border-blue-200 rounded-lg px-6 py-4 mb-6">
+        <div className="bg-blue-50 border border-blue-200 rounded-lg px-6 py-4">
           <h2 className="text-lg font-semibold text-blue-900 mb-2">このページについて</h2>
           <p className="text-sm text-blue-800">
             プロの営業マンと金融リテラシーが高い見込み客のAI同士の会話を自動生成します。
@@ -172,7 +216,7 @@ export default function DemoPage() {
         </div>
 
         {/* Controls */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 px-6 py-4 mb-6">
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 px-6 py-4">
           <h3 className="text-md font-semibold text-gray-800 mb-4">会話の設定</h3>
 
           <div className="space-y-4">
@@ -222,102 +266,67 @@ export default function DemoPage() {
           </div>
         </div>
 
-        {/* Error */}
-        {error && (
-          <div className="bg-red-50 border border-red-200 rounded-lg px-4 py-3 text-red-700 mb-6">
-            <p className="font-semibold">エラー</p>
-            <p className="text-sm">{error}</p>
-          </div>
-        )}
-
-        {/* Loading (initial generation) */}
-        {isLoading && conversation.length === 0 && (
-          <div className="text-center py-8">
-            <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-            <p className="text-gray-600 mt-4">
-              {currentTurn > 0 ? `ターン ${currentTurn} / ${turns} を生成中...` : '会話を生成中...'}
-            </p>
-            <p className="text-sm text-gray-500 mt-2">お待ちください</p>
-          </div>
-        )}
-
-        {/* Conversation Display */}
-        {conversation.length > 0 && (
-          <div className="space-y-6">
-            <h3 className="text-lg font-semibold text-gray-800">生成された会話</h3>
-
-            {conversation.map((turn, index) => (
-              <div key={index} className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
-                {/* Turn Header */}
-                <div className="bg-gray-100 px-4 py-2 border-b border-gray-200">
-                  <h4 className="text-sm font-semibold text-gray-700">ターン {index + 1}</h4>
+        {/* Chat Area */}
+        <div className="flex-1 bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden flex flex-col">
+          <div className="flex-1 overflow-y-auto px-4 py-6">
+            <div className="max-w-3xl mx-auto space-y-4">
+              {messages.length === 0 && !isLoading && !error && (
+                <div className="text-center py-12 text-gray-500">
+                  <p className="text-lg">上記の設定で「会話を生成」ボタンを押してください</p>
+                  <p className="text-sm mt-2">プロの営業マンと見込み客の会話が自動生成されます</p>
                 </div>
+              )}
 
-                {/* Salesman */}
-                <div className="px-6 py-4 border-b border-gray-100">
-                  <div className="flex items-start gap-3">
-                    <div className="flex-shrink-0 w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center text-xl">
-                      👔
-                    </div>
-                    <div className="flex-1">
-                      <div className="text-sm font-semibold text-blue-900 mb-1">営業担当</div>
-                      <div className="text-gray-800 whitespace-pre-wrap">{turn.salesman}</div>
-                    </div>
+              {messages.map((msg, idx) => (
+                <DemoMessage
+                  key={idx}
+                  role={msg.role}
+                  content={msg.content}
+                  timestamp={msg.timestamp}
+                />
+              ))}
+
+              {isLoading && (
+                <div className="flex justify-start">
+                  <div className="bg-gray-200 rounded-lg px-4 py-2 text-gray-600">
+                    <span className="inline-block animate-pulse">
+                      {currentTurn > 0 ? `ターン ${currentTurn} / ${turns} を生成中...` : '入力中...'}
+                    </span>
                   </div>
                 </div>
+              )}
 
-                {/* Prospect */}
-                <div className="px-6 py-4 bg-gray-50">
-                  <div className="flex items-start gap-3">
-                    <div className="flex-shrink-0 w-10 h-10 bg-green-100 rounded-full flex items-center justify-center text-xl">
-                      👤
-                    </div>
-                    <div className="flex-1">
-                      <div className="text-sm font-semibold text-green-900 mb-1">見込み客</div>
-                      <div className="text-gray-800 whitespace-pre-wrap">{turn.prospect}</div>
-                    </div>
-                  </div>
+              {error && (
+                <div className="bg-red-50 border border-red-200 rounded-lg px-4 py-3 text-red-700">
+                  <p className="font-semibold">エラー</p>
+                  <p className="text-sm">{error}</p>
                 </div>
-              </div>
-            ))}
+              )}
 
-            {/* Loading indicator for continuing conversation */}
-            {isLoading && (
-              <div className="bg-white rounded-lg shadow-sm border border-gray-200 px-6 py-8">
-                <div className="text-center">
-                  <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-                  <p className="text-gray-600 mt-3">次のターンを生成中...</p>
-                </div>
-              </div>
-            )}
+              <div ref={messagesEndRef} />
+            </div>
+          </div>
 
-            {/* Action Buttons */}
-            <div className="text-center pt-4 space-x-3">
+          {/* Footer with Action Buttons */}
+          <div className="border-t border-gray-200 px-4 py-3 bg-gray-50">
+            <div className="max-w-3xl mx-auto flex gap-2">
               <button
                 onClick={handleContinue}
-                disabled={isLoading}
-                className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed font-medium"
+                disabled={isLoading || messages.length === 0}
+                className="flex-1 px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed font-medium"
               >
                 会話を続ける
               </button>
               <button
                 onClick={handleGenerate}
                 disabled={isLoading}
-                className="px-6 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 disabled:bg-gray-100 disabled:cursor-not-allowed font-medium"
+                className="flex-1 px-6 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 disabled:bg-gray-100 disabled:cursor-not-allowed font-medium"
               >
                 新しい会話を生成
               </button>
             </div>
           </div>
-        )}
-
-        {/* Initial State */}
-        {conversation.length === 0 && !isLoading && !error && (
-          <div className="text-center py-12 text-gray-500">
-            <p className="text-lg">上記の設定で「会話を生成」ボタンを押してください</p>
-            <p className="text-sm mt-2">プロの営業マンと見込み客の会話が自動生成されます</p>
-          </div>
-        )}
+        </div>
       </main>
 
       {/* Settings Sheet */}
