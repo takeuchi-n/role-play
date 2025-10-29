@@ -7,7 +7,9 @@ import type { ChatSettings } from '@/lib/types';
 
 interface DemoRequest {
   settings: ChatSettings;
-  turns: number; // 会話のターン数（1ターン = 営業→見込み客）
+  turns?: number; // 会話のターン数（1ターン = 営業→見込み客）
+  salesmanHistory?: ConverseMessage[]; // 営業マンの会話履歴
+  prospectHistory?: ConverseMessage[]; // 見込み客の会話履歴
 }
 
 interface ConversationTurn {
@@ -57,95 +59,90 @@ async function callBedrock(
 export async function POST(request: NextRequest) {
   try {
     const body: DemoRequest = await request.json();
-    const { settings, turns } = body;
+    const { settings, salesmanHistory, prospectHistory } = body;
 
-    if (!settings || !turns || turns < 1 || turns > 10) {
+    if (!settings) {
       return NextResponse.json(
-        { success: false, error: '無効なリクエストです（ターン数は1-10）' },
+        { success: false, error: '無効なリクエストです' },
         { status: 400 }
       );
     }
 
-    console.log('\n========== デモ会話生成 ==========');
-    console.log(`ターン数: ${turns}`);
+    console.log('\n========== デモ会話生成（1ターン） ==========');
     console.log(`設定: ${settings.age}歳 ${settings.gender === 'male' ? '男性' : '女性'} ${settings.maritalStatus}`);
 
     const salesmanPrompt = buildProSalesmanPrompt(settings);
     const prospectPrompt = buildSystemPrompt(settings);
 
-    const conversation: ConversationTurn[] = [];
-    let salesmanMessages: ConverseMessage[] = [];
-    let prospectMessages: ConverseMessage[] = [];
+    let salesmanMessages: ConverseMessage[] = salesmanHistory || [];
+    let prospectMessages: ConverseMessage[] = prospectHistory || [];
 
-    // 営業マンの初回プロンプト（会話開始のトリガー）
-    salesmanMessages.push({
-      role: 'user',
-      content: [{ text: '保険の営業を開始してください。自然な挨拶から始めて、相手のニーズを引き出してください。' }],
-    });
-
-    for (let i = 0; i < turns; i++) {
-      console.log(`\n--- ターン ${i + 1} ---`);
-
-      // 営業マンの発言を生成
-      const salesmanResult = await callBedrock(salesmanMessages, salesmanPrompt);
-
-      if (!salesmanResult.success) {
-        return NextResponse.json(
-          { success: false, error: salesmanResult.error },
-          { status: 500 }
-        );
-      }
-
-      console.log(`営業: ${salesmanResult.text}`);
-
-      // 営業マンの発言を履歴に追加
-      salesmanMessages.push({
-        role: 'assistant',
-        content: [{ text: salesmanResult.text }],
-      });
-
-      // 見込み客の履歴に営業マンの発言を追加（userとして）
-      prospectMessages.push({
-        role: 'user',
-        content: [{ text: salesmanResult.text }],
-      });
-
-      // 見込み客の発言を生成
-      const prospectResult = await callBedrock(prospectMessages, prospectPrompt);
-
-      if (!prospectResult.success) {
-        return NextResponse.json(
-          { success: false, error: prospectResult.error },
-          { status: 500 }
-        );
-      }
-
-      console.log(`見込み客: ${prospectResult.text}`);
-
-      // 見込み客の発言を履歴に追加
-      prospectMessages.push({
-        role: 'assistant',
-        content: [{ text: prospectResult.text }],
-      });
-
-      // 営業マンの履歴に見込み客の発言を追加（userとして）
+    // 初回の場合、営業マンに開始プロンプトを追加
+    if (salesmanMessages.length === 0) {
       salesmanMessages.push({
         role: 'user',
-        content: [{ text: prospectResult.text }],
-      });
-
-      // 会話ターンを保存
-      conversation.push({
-        salesman: salesmanResult.text,
-        prospect: prospectResult.text,
+        content: [{ text: '保険の営業を開始してください。自然な挨拶から始めて、相手のニーズを引き出してください。' }],
       });
     }
+
+    // 営業マンの発言を生成
+    const salesmanResult = await callBedrock(salesmanMessages, salesmanPrompt);
+
+    if (!salesmanResult.success) {
+      return NextResponse.json(
+        { success: false, error: salesmanResult.error },
+        { status: 500 }
+      );
+    }
+
+    console.log(`営業: ${salesmanResult.text}`);
+
+    // 営業マンの発言を履歴に追加
+    salesmanMessages.push({
+      role: 'assistant',
+      content: [{ text: salesmanResult.text }],
+    });
+
+    // 見込み客の履歴に営業マンの発言を追加（userとして）
+    prospectMessages.push({
+      role: 'user',
+      content: [{ text: salesmanResult.text }],
+    });
+
+    // 見込み客の発言を生成
+    const prospectResult = await callBedrock(prospectMessages, prospectPrompt);
+
+    if (!prospectResult.success) {
+      return NextResponse.json(
+        { success: false, error: prospectResult.error },
+        { status: 500 }
+      );
+    }
+
+    console.log(`見込み客: ${prospectResult.text}`);
+
+    // 見込み客の発言を履歴に追加
+    prospectMessages.push({
+      role: 'assistant',
+      content: [{ text: prospectResult.text }],
+    });
+
+    // 営業マンの履歴に見込み客の発言を追加（userとして）
+    salesmanMessages.push({
+      role: 'user',
+      content: [{ text: prospectResult.text }],
+    });
 
     console.log('\n==============================\n');
 
     return NextResponse.json({
       success: true,
-      conversation,
+      turn: {
+        salesman: salesmanResult.text,
+        prospect: prospectResult.text,
+      },
+      salesmanHistory: salesmanMessages,
+      prospectHistory: prospectMessages,
     });
   } catch (error) {
     console.error('API Error:', error);

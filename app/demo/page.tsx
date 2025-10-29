@@ -19,6 +19,9 @@ export default function DemoPage() {
   const [error, setError] = useState<string | null>(null);
   const [showSettings, setShowSettings] = useState(false);
   const [turns, setTurns] = useState(3);
+  const [currentTurn, setCurrentTurn] = useState(0);
+  const [salesmanHistory, setSalesmanHistory] = useState<any[]>([]);
+  const [prospectHistory, setProspectHistory] = useState<any[]>([]);
   const [settings, setSettings] = useState<ChatSettings>({
     age: 38,
     gender: 'female',
@@ -29,12 +32,65 @@ export default function DemoPage() {
     setIsLoading(true);
     setError(null);
     setConversation([]);
+    setCurrentTurn(0);
+    setSalesmanHistory([]);
+    setProspectHistory([]);
+
+    try {
+      let localSalesmanHistory: any[] = [];
+      let localProspectHistory: any[] = [];
+
+      for (let i = 0; i < turns; i++) {
+        setCurrentTurn(i + 1);
+
+        const response = await fetch('/api/demo', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            settings,
+            salesmanHistory: localSalesmanHistory,
+            prospectHistory: localProspectHistory,
+          }),
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(data.error || '会話の生成に失敗しました');
+        }
+
+        // 会話を追加
+        setConversation((prev) => [...prev, data.turn]);
+
+        // 履歴を更新
+        localSalesmanHistory = data.salesmanHistory;
+        localProspectHistory = data.prospectHistory;
+        setSalesmanHistory(localSalesmanHistory);
+        setProspectHistory(localProspectHistory);
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : '通信エラーが発生しました');
+    } finally {
+      setIsLoading(false);
+      setCurrentTurn(0);
+    }
+  };
+
+  const handleContinue = async () => {
+    if (isLoading) return;
+
+    setIsLoading(true);
+    setError(null);
 
     try {
       const response = await fetch('/api/demo', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ settings, turns }),
+        body: JSON.stringify({
+          settings,
+          salesmanHistory,
+          prospectHistory,
+        }),
       });
 
       const data = await response.json();
@@ -43,7 +99,12 @@ export default function DemoPage() {
         throw new Error(data.error || '会話の生成に失敗しました');
       }
 
-      setConversation(data.conversation);
+      // 会話を追加
+      setConversation((prev) => [...prev, data.turn]);
+
+      // 履歴を更新
+      setSalesmanHistory(data.salesmanHistory);
+      setProspectHistory(data.prospectHistory);
     } catch (err) {
       setError(err instanceof Error ? err.message : '通信エラーが発生しました');
     } finally {
@@ -169,17 +230,19 @@ export default function DemoPage() {
           </div>
         )}
 
-        {/* Loading */}
-        {isLoading && (
-          <div className="text-center py-12">
+        {/* Loading (initial generation) */}
+        {isLoading && conversation.length === 0 && (
+          <div className="text-center py-8">
             <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-            <p className="text-gray-600 mt-4">会話を生成しています...</p>
-            <p className="text-sm text-gray-500 mt-2">約{turns * 10}秒かかります</p>
+            <p className="text-gray-600 mt-4">
+              {currentTurn > 0 ? `ターン ${currentTurn} / ${turns} を生成中...` : '会話を生成中...'}
+            </p>
+            <p className="text-sm text-gray-500 mt-2">お待ちください</p>
           </div>
         )}
 
         {/* Conversation Display */}
-        {conversation.length > 0 && !isLoading && (
+        {conversation.length > 0 && (
           <div className="space-y-6">
             <h3 className="text-lg font-semibold text-gray-800">生成された会話</h3>
 
@@ -218,13 +281,31 @@ export default function DemoPage() {
               </div>
             ))}
 
-            {/* Regenerate Button */}
-            <div className="text-center pt-4">
+            {/* Loading indicator for continuing conversation */}
+            {isLoading && (
+              <div className="bg-white rounded-lg shadow-sm border border-gray-200 px-6 py-8">
+                <div className="text-center">
+                  <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                  <p className="text-gray-600 mt-3">次のターンを生成中...</p>
+                </div>
+              </div>
+            )}
+
+            {/* Action Buttons */}
+            <div className="text-center pt-4 space-x-3">
+              <button
+                onClick={handleContinue}
+                disabled={isLoading}
+                className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed font-medium"
+              >
+                会話を続ける
+              </button>
               <button
                 onClick={handleGenerate}
-                className="px-6 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 font-medium"
+                disabled={isLoading}
+                className="px-6 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 disabled:bg-gray-100 disabled:cursor-not-allowed font-medium"
               >
-                別の会話を生成
+                新しい会話を生成
               </button>
             </div>
           </div>
